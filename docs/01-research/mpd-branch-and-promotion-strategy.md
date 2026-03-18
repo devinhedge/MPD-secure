@@ -3,7 +3,7 @@ title: MPD Fork — Branch and Promotion Strategy
 description: Branch topology, automated lane promotion mechanics, and main branch protection design for the MPD fork CI/CD pipeline.
 doc_type: research
 author: Devin Hedge
-version: 0.3.0
+version: 0.4.0
 last_updated: 2026-03-18
 status: draft
 category: ci-cd
@@ -69,21 +69,21 @@ Every branch in the pipeline is protected. No commit reaches any branch through 
 
 | Branch | Protection mechanism | Authorized push actor |
 |---|---|---|
-| `dev` | Classic branch protection — PR required | Human actors via PR; security gates required checks |
-| `int` | Classic branch protection — push restricted | GitHub App only |
-| `test-ubuntu-debian` | Classic branch protection — push restricted | GitHub App only |
-| `test-fedora-rhel` | Classic branch protection — push restricted | GitHub App only |
-| `test-arch` | Classic branch protection — push restricted | GitHub App only |
-| `test-macos` | Classic branch protection — push restricted | GitHub App only |
-| `test-windows` | Classic branch protection — push restricted | GitHub App only |
-| `stage-ubuntu-debian` | Classic branch protection — push restricted | GitHub App only |
-| `stage-fedora-rhel` | Classic branch protection — push restricted | GitHub App only |
-| `stage-arch` | Classic branch protection — push restricted | GitHub App only |
-| `stage-macos` | Classic branch protection — push restricted | GitHub App only |
-| `stage-windows` | Classic branch protection — push restricted | GitHub App only |
-| `main` | GitHub Ruleset — no direct push | No direct push; PR only; 5 required status checks |
+| `dev` | GitHub Ruleset — PR required; 3 required status checks | Human actors via PR |
+| `int` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `test-ubuntu-debian` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `test-fedora-rhel` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `test-arch` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `test-macos` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `test-windows` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `stage-ubuntu-debian` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `stage-fedora-rhel` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `stage-arch` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `stage-macos` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `stage-windows` | GitHub Ruleset — push restricted; GitHub App bypass | GitHub App only |
+| `main` | GitHub Ruleset — no direct push; 5 required status checks | No direct push; PR only |
 
-`main` uses a GitHub Ruleset rather than classic branch protection because Rulesets block admin bypass; classic protection does not. All other branches use classic branch protection with push restrictions scoped to the GitHub App.
+All branches use GitHub Rulesets. Rulesets support GitHub Apps as named bypass actors, enabling push-restricted branches where only the pipeline App can push. This eliminates the need for classic branch protection entirely and ensures admin bypass is blocked on every branch, not just `main`.
 
 ---
 
@@ -102,7 +102,7 @@ git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
   HEAD:refs/heads/int
 ```
 
-The `int` branch is protected — only the GitHub App can push to it. This ensures that only commits that have passed the integration build can trigger the platform fan-out.
+The `int` branch Ruleset restricts all pushes; the GitHub App is the only bypass actor. This ensures that only commits that have passed the integration build can trigger the platform fan-out.
 
 ### int to test-* (fan-out)
 
@@ -113,7 +113,7 @@ git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
   <SHA>:refs/heads/test-<platform>
 ```
 
-Each `test-*` branch is protected — only the GitHub App can push to it.
+Each `test-*` branch Ruleset restricts all pushes; the GitHub App is the only bypass actor.
 
 ### test-* to stage-* (automated promotion)
 
@@ -126,7 +126,7 @@ git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
   HEAD:refs/heads/stage-<platform>
 ```
 
-The GitHub App holds `contents: write` and `statuses: write` permissions scoped to this repository. Because the App is the only actor with permission to push to `stage-*` branches, those branches can be protected — enforcing that only pipeline-verified commits reach staging.
+The GitHub App holds `contents: write` and `statuses: write` permissions scoped to this repository. Each `stage-*` branch Ruleset restricts all pushes; the GitHub App is the only bypass actor — enforcing that only pipeline-verified commits reach staging.
 
 The stage workflow runs packaging jobs that produce the release-quality artifact (format determined by platform). When the stage workflow succeeds, it posts a named commit status check to that commit using the same App token — for example, `pipeline/stage-ubuntu-debian: passed`.
 
@@ -152,7 +152,7 @@ These checks are only posted by their respective stage workflows. A PR opened di
 
 ### GitHub Ruleset
 
-A GitHub Ruleset is applied to `main` to prohibit direct pushes for all actors including repository administrators. This closes the bypass path that classic branch protection rules leave open for admins. Combined with required status checks, the two controls together mean:
+A GitHub Ruleset is applied to `main` with no bypass actors, prohibiting direct pushes for all actors including repository administrators. Combined with required status checks, the two controls together mean:
 
 - No direct push to `main` is possible for any actor.
 - No PR against `main` can be merged unless all five stage status checks are present and passing.
@@ -170,9 +170,9 @@ Pull requests against `main` can be opened by anyone with repository access. Git
 
 **`dev` uses PR-based promotion with required security gates.** The `dev` branch is the only branch where human actors participate in promotion. Feature branches are merged via PR. The three security gates (SAST, CVE scan, secret detection) are required status checks on `dev` PRs. No PR can be merged without all three passing.
 
-**Downstream branches use push-restricted branch protection.** `int`, all `test-*` branches, and all `stage-*` branches are protected with a push restriction allowing only the GitHub App. Classic branch protection is used for these (not GitHub Ruleset) because Rulesets cannot restrict pushes to a specific GitHub App identity — only to specific users or teams. The GitHub App restriction is enforced via the push restriction allowlist.
+**All branches use GitHub Rulesets exclusively.** GitHub Rulesets support named GitHub Apps as bypass actors. A Ruleset that restricts all pushes and lists only the pipeline GitHub App as a bypass actor is the correct mechanism for App-only branch promotion — no classic branch protection is required. This applies to `int`, all `test-*` branches, and all `stage-*` branches. Using Rulesets everywhere (rather than a mix of classic rules and Rulesets) means admin bypass is blocked on every branch in the pipeline, not just `main`, and the enforcement primitive is consistent across the entire topology.
 
-**`main` uses GitHub Ruleset.** `main` uses a GitHub Ruleset rather than classic branch protection because Rulesets block admin bypass. Classic branch protection leaves an admin bypass path open. The Ruleset on `main` combined with branch protection on all upstream branches creates a defense-in-depth model: every layer is independently enforced.
+**`main` Ruleset has no bypass actors.** The `main` Ruleset prohibits direct pushes for all actors including administrators. No bypass actor is configured — promotion to `main` is exclusively via PR merge after all five required status checks are satisfied.
 
 **No promote-to-main job.** The pipeline does not contain a job that pushes to `main`. Keeping `main` promotion as a manual human action preserves a deliberate review point regardless of pipeline automation. This boundary is enforced structurally, not by convention.
 
