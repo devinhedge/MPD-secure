@@ -131,13 +131,13 @@ The private key file is read once and never written to stdout.
 ## Step 4: Configure GitHub Rulesets
 
 ```bash
-./03-configure-rulesets.sh <INSTALLATION_ID>
+./03-configure-rulesets.sh <APP_ID>
 ```
 
 Example:
 
 ```bash
-./03-configure-rulesets.sh 78901234
+./03-configure-rulesets.sh 3127213
 ```
 
 Applies all 13 Rulesets. Safe to re-run — existing Rulesets are skipped.
@@ -146,7 +146,7 @@ Applies all 13 Rulesets. Safe to re-run — existing Rulesets are skipped.
 define the final workflow job names):
 
 ```bash
-./03-configure-rulesets.sh <INSTALLATION_ID> <SAST_JOB_NAME> <CVE_JOB_NAME> <SECRETS_JOB_NAME>
+./03-configure-rulesets.sh <APP_ID> <SAST_JOB_NAME> <CVE_JOB_NAME> <SECRETS_JOB_NAME>
 ```
 
 The existing `pipeline-dev-protection` Ruleset will be skipped (idempotent). To force

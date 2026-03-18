@@ -2,12 +2,12 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <INSTALLATION_ID> [SAST_CHECK] [CVE_CHECK] [SECRETS_CHECK]"
+  echo "Usage: $0 <APP_ID> [SAST_CHECK] [CVE_CHECK] [SECRETS_CHECK]"
   echo ""
-  echo "  INSTALLATION_ID  — GitHub App installation ID"
-  echo "  SAST_CHECK       — status check context for SAST (default: sast)"
-  echo "  CVE_CHECK        — status check context for CVE scan (default: cve-scan)"
-  echo "  SECRETS_CHECK    — status check context for secret detection (default: secret-detection)"
+  echo "  APP_ID        — numeric GitHub App ID (shown on the App settings page)"
+  echo "  SAST_CHECK    — status check context for SAST (default: sast)"
+  echo "  CVE_CHECK     — status check context for CVE scan (default: cve-scan)"
+  echo "  SECRETS_CHECK — status check context for secret detection (default: secret-detection)"
   exit 1
 }
 
@@ -15,10 +15,10 @@ if [ "$#" -lt 1 ]; then
   usage
 fi
 
-INSTALLATION_ID="$1"
+APP_ID="$1"
 
-if ! [[ "$INSTALLATION_ID" =~ ^[0-9]+$ ]]; then
-  echo "[FAIL] INSTALLATION_ID must be a positive integer, got: ${INSTALLATION_ID}" >&2
+if ! [[ "$APP_ID" =~ ^[0-9]+$ ]]; then
+  echo "[FAIL] APP_ID must be a positive integer, got: ${APP_ID}" >&2
   exit 1
 fi
 
@@ -128,7 +128,7 @@ for branch in "${PATTERN2_BRANCHES[@]}"; do
   ],
   "bypass_actors": [
     {
-      "actor_id": ${INSTALLATION_ID},
+      "actor_id": ${APP_ID},
       "actor_type": "Integration",
       "bypass_mode": "always"
     }
