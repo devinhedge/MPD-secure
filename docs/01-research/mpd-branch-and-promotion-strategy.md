@@ -3,7 +3,7 @@ title: MPD Fork — Branch and Promotion Strategy
 description: Branch topology, automated lane promotion mechanics, and main branch protection design for the MPD fork CI/CD pipeline.
 doc_type: research
 author: Devin Hedge
-version: 0.2.0
+version: 0.3.0
 last_updated: 2026-03-18
 status: draft
 category: ci-cd
@@ -14,7 +14,7 @@ tags: [github-actions, branch-strategy, promotion, branch-protection, rulesets]
 
 ## Purpose
 
-This document defines the branch topology, automated promotion mechanics between pipeline lanes, and the enforcement strategy for the `main` branch. It is a design document — no workflow YAML is produced here.
+This document defines the branch topology, automated promotion mechanics between pipeline lanes, and the branch protection strategy for the entire pipeline. Every branch in the pipeline is protected. It is a design document — no workflow YAML is produced here.
 
 ---
 
@@ -63,11 +63,57 @@ feature | chore | fix
 | `stage-windows` | stage | Windows | auto-promoted from `test-windows` |
 | `main` | release | all platforms | manual PR merge from all five stage lanes |
 
+## Branch Protection Summary
+
+Every branch in the pipeline is protected. No commit reaches any branch through an uncontrolled path.
+
+| Branch | Protection mechanism | Authorized push actor |
+|---|---|---|
+| `dev` | Classic branch protection — PR required | Human actors via PR; security gates required checks |
+| `int` | Classic branch protection — push restricted | GitHub App only |
+| `test-ubuntu-debian` | Classic branch protection — push restricted | GitHub App only |
+| `test-fedora-rhel` | Classic branch protection — push restricted | GitHub App only |
+| `test-arch` | Classic branch protection — push restricted | GitHub App only |
+| `test-macos` | Classic branch protection — push restricted | GitHub App only |
+| `test-windows` | Classic branch protection — push restricted | GitHub App only |
+| `stage-ubuntu-debian` | Classic branch protection — push restricted | GitHub App only |
+| `stage-fedora-rhel` | Classic branch protection — push restricted | GitHub App only |
+| `stage-arch` | Classic branch protection — push restricted | GitHub App only |
+| `stage-macos` | Classic branch protection — push restricted | GitHub App only |
+| `stage-windows` | Classic branch protection — push restricted | GitHub App only |
+| `main` | GitHub Ruleset — no direct push | No direct push; PR only; 5 required status checks |
+
+`main` uses a GitHub Ruleset rather than classic branch protection because Rulesets block admin bypass; classic protection does not. All other branches use classic branch protection with push restrictions scoped to the GitHub App.
+
+---
+
 ## Promotion Mechanics
+
+### feature/* to dev (PR merge)
+
+Feature, chore, and fix branches are merged to `dev` via pull request. The `dev` branch has branch protection requiring PR review. The three security gates (SAST, CVE scan, secret detection) are configured as required status checks on `dev` PRs — a PR cannot be merged until all three pass. Human actors perform the merge; no automated promotion is involved at this step.
+
+### dev to int (automated promotion)
+
+When a commit lands on `dev` (via PR merge), the `dev` workflow runs the integration build. On success, the GitHub App pushes that commit to `int`:
+
+```
+git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
+  HEAD:refs/heads/int
+```
+
+The `int` branch is protected — only the GitHub App can push to it. This ensures that only commits that have passed the integration build can trigger the platform fan-out.
 
 ### int to test-* (fan-out)
 
-The `int` workflow triggers all five platform test workflows on successful completion. This is implemented as a fan-out: `int` dispatches a `repository_dispatch` event (or uses `workflow_call`) to each platform test workflow in parallel. No branch push is required at this step — the test workflows operate on the same commit SHA that passed `int`.
+When a commit lands on `int`, the `int` workflow triggers all five platform test workflows on successful completion. This is implemented as a fan-out using `workflow_call` or `repository_dispatch`. Each platform test workflow receives the same commit SHA. On completion of each test workflow, the GitHub App pushes that commit to the corresponding `test-*` branch:
+
+```
+git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
+  <SHA>:refs/heads/test-<platform>
+```
+
+Each `test-*` branch is protected — only the GitHub App can push to it.
 
 ### test-* to stage-* (automated promotion)
 
@@ -102,7 +148,7 @@ This is the only human gate in the pipeline. All other lane transitions are auto
 - `pipeline/stage-macos`
 - `pipeline/stage-windows`
 
-These checks are only posted by their respective stage workflows. A PR opened directly from `feature/*`, `dev`, or `int` to `main` will never have any of these checks present, making the merge button permanently disabled for any bypass attempt.
+These checks are only posted by their respective stage workflows. A PR opened directly from `feature/*`, `dev`, `int`, or any `test-*` branch to `main` will never have any of these checks present, making the merge button permanently disabled for any bypass attempt.
 
 ### GitHub Ruleset
 
@@ -116,13 +162,17 @@ A GitHub Ruleset is applied to `main` to prohibit direct pushes for all actors i
 
 Pull requests against `main` can be opened by anyone with repository access. GitHub does not support restricting PR creation at the platform level. This is acceptable because the merge gate makes such PRs inert — they cannot be merged without satisfying all five stage checks.
 
-The `stage-*` branches are protected. Only the GitHub App can push to them. This ensures that no commit reaches staging unless it has passed the full test lane for its platform.
-
 ## Key Design Decisions
 
-**GitHub App over `GITHUB_TOKEN` for lane promotion.** A GitHub App with `contents: write` and `statuses: write` permissions scoped to this repository is the promotion actor. This provides several security properties that `GITHUB_TOKEN` cannot: the App identity appears in the audit log as a named non-human actor, its credentials (App ID + private key) are stored as repository secrets and are independently rotatable, and the App can be suspended or uninstalled without affecting any human account. Short-lived installation tokens are generated per-workflow run — no long-lived credential is ever present in the runner environment.
+**All branches protected.** Every branch in the pipeline is protected. No commit can reach any branch through an uncontrolled path. This eliminates the attack surface where a compromised credential or misconfigured workflow could inject an unverified commit at any point in the pipeline topology.
 
-**`stage-*` branches protected.** Because the GitHub App is the promotion actor, `stage-*` branches can be protected with a push restriction allowing only the App. This closes the path where any actor with `contents: write` access could push directly to staging. The protection on `stage-*` and the Ruleset on `main` together form two independent enforcement layers.
+**GitHub App over `GITHUB_TOKEN` for all automated promotions.** A GitHub App with `contents: write` and `statuses: write` permissions scoped to this repository is the sole automated promotion actor for all lane transitions: dev→int, int→test-*, test-*→stage-*, and stage-* status checks. This provides several security properties that `GITHUB_TOKEN` cannot: the App identity appears in the audit log as a named non-human actor, its credentials (App ID + private key) are stored as repository secrets and are independently rotatable, and the App can be suspended or uninstalled without affecting any human account. Short-lived installation tokens are generated per-workflow run — no long-lived credential is ever present in the runner environment.
+
+**`dev` uses PR-based promotion with required security gates.** The `dev` branch is the only branch where human actors participate in promotion. Feature branches are merged via PR. The three security gates (SAST, CVE scan, secret detection) are required status checks on `dev` PRs. No PR can be merged without all three passing.
+
+**Downstream branches use push-restricted branch protection.** `int`, all `test-*` branches, and all `stage-*` branches are protected with a push restriction allowing only the GitHub App. Classic branch protection is used for these (not GitHub Ruleset) because Rulesets cannot restrict pushes to a specific GitHub App identity — only to specific users or teams. The GitHub App restriction is enforced via the push restriction allowlist.
+
+**`main` uses GitHub Ruleset.** `main` uses a GitHub Ruleset rather than classic branch protection because Rulesets block admin bypass. Classic branch protection leaves an admin bypass path open. The Ruleset on `main` combined with branch protection on all upstream branches creates a defense-in-depth model: every layer is independently enforced.
 
 **No promote-to-main job.** The pipeline does not contain a job that pushes to `main`. Keeping `main` promotion as a manual human action preserves a deliberate review point regardless of pipeline automation. This boundary is enforced structurally, not by convention.
 
