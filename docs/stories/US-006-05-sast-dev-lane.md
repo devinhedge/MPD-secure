@@ -22,6 +22,10 @@ are caught before integration.
 
 - SAST tool selected and configured for C++ codebase (CodeQL or equivalent)
 - Runs on every push to `dev` and on every PR targeting `dev`
+- Workflow includes a constrained Meson build step (minimal dependencies,
+  `auto_features=disabled`, compiler and core libraries only) to enable
+  CodeQL C++ source analysis — this is a compilation-only step, not a
+  platform packaging build
 - All findings reported at Critical and High severity block the push
 - Findings at Medium and Low are reported but non-blocking
 - Baseline report stored at `docs/security/sast-baseline.md`

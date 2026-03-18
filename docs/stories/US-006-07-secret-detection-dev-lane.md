@@ -19,6 +19,8 @@ repository.
 ## Acceptance Criteria
 
 - Secret detection tool configured (Gitleaks or equivalent)
+- No Meson build step required — secret detection scans git object history
+  directly and does not depend on compilation artifacts
 - Scans the full commit history on first run; incremental on subsequent runs
 - Any detected secret blocks the push with zero exceptions
 - Suppression mechanism exists for false positives with mandatory rationale
