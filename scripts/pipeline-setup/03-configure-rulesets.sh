@@ -122,8 +122,8 @@ for branch in "${PATTERN2_BRANCHES[@]}"; do
     }
   },
   "rules": [
-    {"type": "restrict_creations"},
-    {"type": "restrict_updates"},
+    {"type": "creation"},
+    {"type": "update"},
     {"type": "non_fast_forward"}
   ],
   "bypass_actors": [
