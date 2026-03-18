@@ -31,8 +31,8 @@ This feature covers the complete CI/CD pipeline for MPD-secure:
    promotion order and prevents bypasses to `main`
 2. **Platform packaging lanes** — per-platform build, test, and staging
    workflows producing native artifacts for all five target platforms
-3. **Promotion mechanics** — automated lane transitions using `GITHUB_TOKEN`;
-   single human gate at `main`
+3. **Promotion mechanics** — automated lane transitions via GitHub App
+   installation tokens; single human gate at `main`
 4. **Security gates** — SAST, CVE scanning, and secret detection embedded as
    required checks in the `dev` and `int` lanes
 
@@ -85,21 +85,32 @@ feature | chore | fix
 ### US-006-01: Establish Branch Topology and Protection
 
 **As a** contributor to MPD-secure,
-**I want** the branch topology created and `main` protected by a GitHub Ruleset,
-**so that** no commit can reach `main` without passing through the full pipeline.
+**I want** the branch topology created with every pipeline branch protected,
+**so that** no commit can reach any branch through an uncontrolled path, and
+no commit can reach `main` without passing through the full pipeline.
 
 **Acceptance Criteria:**
 
 - Branches created: `dev`, `int`, `test-ubuntu-debian`, `test-fedora-rhel`,
   `test-arch`, `test-macos`, `test-windows`, `stage-ubuntu-debian`,
   `stage-fedora-rhel`, `stage-arch`, `stage-macos`, `stage-windows`
+- `dev` protected with classic branch protection — PR required:
+  - Direct push to `dev` is prohibited
+  - Three required status checks on `dev` PRs: SAST, CVE scan, secret
+    detection — a PR cannot be merged until all three pass
+- `int` protected with classic branch protection — push restricted to the
+  GitHub App only; no human or `GITHUB_TOKEN` can push directly
+- `test-ubuntu-debian`, `test-fedora-rhel`, `test-arch`, `test-macos`,
+  `test-windows` each protected with classic branch protection — push
+  restricted to the GitHub App only
+- `stage-ubuntu-debian`, `stage-fedora-rhel`, `stage-arch`, `stage-macos`,
+  `stage-windows` each protected with classic branch protection — push
+  restricted to the GitHub App only
 - GitHub Ruleset applied to `main`:
   - Direct push prohibited for all actors including administrators
   - Five required status checks: `pipeline/stage-ubuntu-debian`,
     `pipeline/stage-fedora-rhel`, `pipeline/stage-arch`,
     `pipeline/stage-macos`, `pipeline/stage-windows`
-- `stage-*` branches protected with a push restriction allowing only the
-  GitHub App — no human or `GITHUB_TOKEN` can push directly to staging
 - GitHub App created and installed on the repository:
   - App ID and private key stored as repository secrets
   - Permissions: `contents: write`, `statuses: write`, scoped to this repo
@@ -108,12 +119,21 @@ feature | chore | fix
 
 **Key Design Decisions:**
 
-- GitHub App over `GITHUB_TOKEN` for lane promotion — the App is the named
-  non-human promotion actor; its credentials are independently rotatable;
-  it appears in the audit log; `stage-*` branches can be protected because
-  only the App can push through branch protection
-- GitHub Ruleset over classic branch protection — Rulesets block admin bypass;
-  classic branch protection does not
+- All branches protected — every branch in the pipeline is protected; no
+  commit can reach any branch through an uncontrolled path; this eliminates
+  the attack surface where a compromised credential or misconfigured workflow
+  could inject an unverified commit at any point in the topology
+- GitHub App over `GITHUB_TOKEN` for all automated promotions — the App is
+  the named non-human promotion actor for all lane transitions (dev→int,
+  int→test-*, test-*→stage-*, and stage-* status checks); its credentials
+  are independently rotatable; it appears in the audit log; short-lived
+  installation tokens are generated per workflow run
+- Classic branch protection with App allowlist for `int`, `test-*`, and
+  `stage-*` — Rulesets cannot restrict pushes to a specific GitHub App
+  identity (only to users or teams); classic branch protection supports the
+  push restriction allowlist required to scope access to the App
+- GitHub Ruleset for `main` — Rulesets block admin bypass; classic branch
+  protection does not; `main` requires this stronger enforcement primitive
 - Required status checks as the enforcement primitive — adding a platform in
   the future requires only adding its stage check to the required list
 - No automated promotion to `main` — the pipeline never pushes to `main`;
@@ -134,11 +154,16 @@ begins.
 - Workflow triggers on push to `dev`
 - Builds MPD-secure using Meson on a generic runner (validates build system
   correctness independent of platform packaging)
+- On success, the GitHub App pushes the commit to the `int` branch using a
+  short-lived installation token generated via `actions/create-github-app-token`:
+  ```
+  git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
+    HEAD:refs/heads/int
+  ```
 - On success, dispatches all five platform test workflows in parallel using
   `workflow_call` or `repository_dispatch`
-- All five fan-out dispatches use the same commit SHA that passed `int`
-- No branch push to `int` is required — the test workflows operate on the
-  commit SHA directly
+- All five fan-out dispatches use the same commit SHA that passed the
+  integration build
 
 ---
 
@@ -160,6 +185,12 @@ platform-native package,
     `.pkg.tar.zst`, Homebrew formula, WiX installer)
   - Runs the platform's package validation tooling (e.g., `lintian` for
     `.deb`, `rpmlint` for `.rpm`)
+  - On all jobs passing, promotes the commit to the corresponding `test-*`
+    branch via a GitHub App installation token:
+    ```
+    git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
+      <SHA>:refs/heads/test-<platform>
+    ```
   - On all jobs passing, promotes the commit to the corresponding `stage-*`
     branch via a GitHub App installation token:
     ```
@@ -268,11 +299,22 @@ repository.
 - GitHub App created and installed on the repository with `contents: write`
   and `statuses: write` permissions; App ID and private key stored as
   repository secrets (`PIPELINE_APP_ID`, `PIPELINE_APP_PRIVATE_KEY`)
+- All pipeline branches created and branch protection configured before
+  workflow implementation begins: `dev` (PR required + security gate checks),
+  `int` (App push only), all `test-*` branches (App push only), all
+  `stage-*` branches (App push only), `main` (GitHub Ruleset)
 
 ## Definition of Done
 
 - GitHub App created, installed, and secrets stored in the repository
 - All branches from US-006-01 exist in the repository
+- `dev` branch protection verified — PR required; a direct push as a human
+  actor must be rejected; SAST, CVE scan, and secret detection checks are
+  required on `dev` PRs
+- `int` branch protected — only the GitHub App can push to it
+  (attempt a direct push as a human actor — it must be rejected)
+- All `test-*` branches protected — only the GitHub App can push to them
+  (attempt a direct push as a human actor — it must be rejected)
 - `stage-*` branches protected — only the GitHub App can push to them
   (attempt a direct push as a human actor — it must be rejected)
 - GitHub Ruleset on `main` in place and tested (attempt a direct push from
@@ -292,6 +334,9 @@ repository.
 ## Research References
 
 - `docs/01-research/mpd-branch-and-promotion-strategy.md` — branch topology,
-  promotion mechanics, and `main` branch protection design
+  all-branch protection design, promotion mechanics for every lane transition,
+  and `main` GitHub Ruleset design
 - `docs/01-research/mpd-packaging-context.md` — platform targets, runner
   strategy, resolved decisions, and constraints
+- `docs/01-research/mpd-cicd-pipeline.drawio` — visual diagram of the full
+  pipeline topology with branch protection annotations
