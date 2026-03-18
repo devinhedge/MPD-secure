@@ -16,6 +16,12 @@ if [ "$#" -lt 1 ]; then
 fi
 
 INSTALLATION_ID="$1"
+
+if ! [[ "$INSTALLATION_ID" =~ ^[0-9]+$ ]]; then
+  echo "[FAIL] INSTALLATION_ID must be a positive integer, got: ${INSTALLATION_ID}" >&2
+  exit 1
+fi
+
 SAST_CHECK="${2:-sast}"
 CVE_CHECK="${3:-cve-scan}"
 SECRETS_CHECK="${4:-secret-detection}"
@@ -42,7 +48,7 @@ create_ruleset() {
     --method POST \
     --input - <<< "$payload")
   local id
-  id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
+  id=$(echo "$response" | jq -r '.id')
   echo "[CREATE] Ruleset created: ${name} (id=${id})"
 }
 
