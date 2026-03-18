@@ -83,9 +83,14 @@ in step 3.
 ### 2c. Install the App on the repository
 
 1. On the App settings page, click **Install App** in the left sidebar
-2. Click **Install** next to your account
-3. Select **Only select repositories** and choose `devinhedge/MPD-secure`
-4. Click **Install**
+2. The page shows "Choose an account to install mpd-secure-pipeline on:" — click **Install**
+   next to your account (`devinhedge`)
+3. A confirmation page opens showing the requested permissions. Under "for these
+   repositories:", the default is **All repositories** — change it to
+   **Only select repositories**
+4. A repository search box appears — type `MPD-secure` and select
+   `devinhedge/MPD-secure` from the results
+5. Click **Install** to confirm
 
 ### 2d. Retrieve the installation ID
 
