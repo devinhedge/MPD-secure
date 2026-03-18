@@ -15,3 +15,6 @@ docs/standards
 !docs/features/**
 PROGRESS.MD
 .session
+EXPLICIT_PRINCIPLES.md
+.worktrees/
+.gstack/
