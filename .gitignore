@@ -6,8 +6,12 @@ __pycache__/
 doc/MPD-secure.code-workspace
 .claude
 TODO.md
+TODOS.md
 CLAUDE.md
 AGENTS.md
-docs
+docs/agents
+docs/standards
+!docs/features
+!docs/features/**
 PROGRESS.MD
 .session
