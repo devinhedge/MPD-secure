@@ -3,7 +3,10 @@
 **Feature:** [FEATURE-006](../features/FEATURE-006-cicd-pipeline.md) — Add CI/CD Pipeline with Security Gates
 **GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/12
 **Status:** Planned
-**Blocked By:** FEATURE-007 (STRIDE threat model)
+**Blocked By:** FEATURE-007 (STRIDE threat model) — partial dependency only:
+branch topology and Ruleset setup can proceed with placeholder status check
+context strings (`sast`, `cve-scan`, `secret-detection`); final context
+strings must be confirmed once FEATURE-007 and US-006-05/06/07 are complete
 
 ---
 
@@ -40,7 +43,8 @@ no commit can reach `main` without passing through the full pipeline.
     `pipeline/stage-fedora-rhel`, `pipeline/stage-arch`,
     `pipeline/stage-macos`, `pipeline/stage-windows`
 - GitHub App created and installed on the repository:
-  - App ID and private key stored as repository secrets
+  - App ID, private key, and installation ID stored as repository secrets:
+    `PIPELINE_APP_ID`, `PIPELINE_APP_PRIVATE_KEY`, `PIPELINE_APP_INSTALLATION_ID`
   - Permissions: `contents: write`, `statuses: write`, scoped to this repo
 - A PR from any branch other than `stage-*` to `main` cannot be merged
   (required checks will never be present)
@@ -87,8 +91,9 @@ implementation step following the TASK_STANDARD._
       bypass actor)
 - [ ] Configure `stage-*` GitHub Rulesets (push restricted; GitHub App as
       sole bypass actor)
-- [ ] Create GitHub App and install on repository; store `PIPELINE_APP_ID` and
-      `PIPELINE_APP_PRIVATE_KEY` as repository secrets
+- [ ] Create GitHub App and install on repository; store `PIPELINE_APP_ID`,
+      `PIPELINE_APP_PRIVATE_KEY`, and `PIPELINE_APP_INSTALLATION_ID` as
+      repository secrets
 - [ ] Configure GitHub Ruleset on `main` (no direct push; five required status
       checks)
 - [ ] Verify: direct push to `dev` rejected; PR required; security gate checks
