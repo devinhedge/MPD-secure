@@ -98,13 +98,20 @@ feature | chore | fix
   - Five required status checks: `pipeline/stage-ubuntu-debian`,
     `pipeline/stage-fedora-rhel`, `pipeline/stage-arch`,
     `pipeline/stage-macos`, `pipeline/stage-windows`
-- `stage-*` branches intentionally left unprotected (allows `GITHUB_TOKEN`
-  promotion without a PAT)
+- `stage-*` branches protected with a push restriction allowing only the
+  GitHub App — no human or `GITHUB_TOKEN` can push directly to staging
+- GitHub App created and installed on the repository:
+  - App ID and private key stored as repository secrets
+  - Permissions: `contents: write`, `statuses: write`, scoped to this repo
 - A PR from any branch other than `stage-*` to `main` cannot be merged
   (required checks will never be present)
 
 **Key Design Decisions:**
 
+- GitHub App over `GITHUB_TOKEN` for lane promotion — the App is the named
+  non-human promotion actor; its credentials are independently rotatable;
+  it appears in the audit log; `stage-*` branches can be protected because
+  only the App can push through branch protection
 - GitHub Ruleset over classic branch protection — Rulesets block admin bypass;
   classic branch protection does not
 - Required status checks as the enforcement primitive — adding a platform in
@@ -154,11 +161,13 @@ platform-native package,
   - Runs the platform's package validation tooling (e.g., `lintian` for
     `.deb`, `rpmlint` for `.rpm`)
   - On all jobs passing, promotes the commit to the corresponding `stage-*`
-    branch via:
+    branch via a GitHub App installation token:
     ```
-    git push origin HEAD:refs/heads/stage-<platform>
+    git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
+      HEAD:refs/heads/stage-<platform>
     ```
-  - Uses `GITHUB_TOKEN` with `contents: write` — no PAT required
+  - Uses `actions/create-github-app-token` to generate a short-lived
+    installation token from the App ID and private key stored as secrets
 - Arch Linux: uses `archlinux` Docker container image on `ubuntu-latest` host
 - Fedora/RHEL: uses `fedora` Docker container image on `ubuntu-latest` host
 
@@ -186,7 +195,8 @@ before any PR is merged.
     - `pipeline/stage-arch`
     - `pipeline/stage-macos`
     - `pipeline/stage-windows`
-  - Uses `GITHUB_TOKEN` with `statuses: write` permission
+  - Uses the GitHub App installation token (same App used for promotion) to
+    post status checks — token generated via `actions/create-github-app-token`
 - Status checks use the exact names listed in US-006-01's Ruleset
   configuration — any mismatch means `main` merge remains blocked
 
@@ -255,10 +265,16 @@ repository.
 - SAST tool selected and agreed upon (see FEATURE-002 US-002-01)
 - GitHub Actions available on the repository (confirmed)
 - All five target platforms confirmed (see research: `docs/01-research/mpd-packaging-context.md`)
+- GitHub App created and installed on the repository with `contents: write`
+  and `statuses: write` permissions; App ID and private key stored as
+  repository secrets (`PIPELINE_APP_ID`, `PIPELINE_APP_PRIVATE_KEY`)
 
 ## Definition of Done
 
+- GitHub App created, installed, and secrets stored in the repository
 - All branches from US-006-01 exist in the repository
+- `stage-*` branches protected — only the GitHub App can push to them
+  (attempt a direct push as a human actor — it must be rejected)
 - GitHub Ruleset on `main` in place and tested (attempt a direct push from
   an admin account — it must be rejected)
 - `int` workflow triggers on push to `dev` and successfully fans out

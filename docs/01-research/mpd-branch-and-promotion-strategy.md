@@ -3,7 +3,7 @@ title: MPD Fork — Branch and Promotion Strategy
 description: Branch topology, automated lane promotion mechanics, and main branch protection design for the MPD fork CI/CD pipeline.
 doc_type: research
 author: Devin Hedge
-version: 0.1.0
+version: 0.2.0
 last_updated: 2026-03-18
 status: draft
 category: ci-cd
@@ -71,17 +71,18 @@ The `int` workflow triggers all five platform test workflows on successful compl
 
 ### test-* to stage-* (automated promotion)
 
-When all jobs in a platform test workflow pass, the final job performs an automated branch promotion by pushing the commit to the corresponding stage branch. This uses the built-in `GITHUB_TOKEN` with `contents: write` permission granted at the workflow level — no personal access token or GitHub App is required.
+When all jobs in a platform test workflow pass, the final job performs an automated branch promotion by pushing the commit to the corresponding stage branch. This uses a **GitHub App installation token** — not `GITHUB_TOKEN` and not a personal access token.
 
-Concretely, the promotion job executes:
+The promotion job generates a short-lived installation token at runtime using `actions/create-github-app-token`, then uses that token for the push:
 
 ```
-git push origin HEAD:refs/heads/stage-<platform>
+git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
+  HEAD:refs/heads/stage-<platform>
 ```
 
-The `stage-*` branches are not protected, so `GITHUB_TOKEN` with `contents: write` can push to them without restriction. This triggers the stage workflow for that platform.
+The GitHub App holds `contents: write` and `statuses: write` permissions scoped to this repository. Because the App is the only actor with permission to push to `stage-*` branches, those branches can be protected — enforcing that only pipeline-verified commits reach staging.
 
-The stage workflow runs packaging jobs that produce the release-quality artifact (format determined by platform). When the stage workflow succeeds, it posts a named commit status check to that commit — for example, `pipeline/stage-ubuntu-debian: passed`.
+The stage workflow runs packaging jobs that produce the release-quality artifact (format determined by platform). When the stage workflow succeeds, it posts a named commit status check to that commit using the same App token — for example, `pipeline/stage-ubuntu-debian: passed`.
 
 ### stage-* to main (manual PR merge)
 
@@ -115,14 +116,14 @@ A GitHub Ruleset is applied to `main` to prohibit direct pushes for all actors i
 
 Pull requests against `main` can be opened by anyone with repository access. GitHub does not support restricting PR creation at the platform level. This is acceptable because the merge gate makes such PRs inert — they cannot be merged without satisfying all five stage checks.
 
-The `stage-*` branches are intentionally left unprotected to allow `GITHUB_TOKEN` to push to them automatically. Protection on `stage-*` is not required because `main` is the authoritative gate.
+The `stage-*` branches are protected. Only the GitHub App can push to them. This ensures that no commit reaches staging unless it has passed the full test lane for its platform.
 
 ## Key Design Decisions
 
-**`GITHUB_TOKEN` over PAT for lane promotion.** Using the built-in token avoids credentials tied to a personal account and removes the operational risk of a token expiring or its owner leaving the project. `contents: write` permission is granted per-workflow, not globally, minimizing the permission surface.
+**GitHub App over `GITHUB_TOKEN` for lane promotion.** A GitHub App with `contents: write` and `statuses: write` permissions scoped to this repository is the promotion actor. This provides several security properties that `GITHUB_TOKEN` cannot: the App identity appears in the audit log as a named non-human actor, its credentials (App ID + private key) are stored as repository secrets and are independently rotatable, and the App can be suspended or uninstalled without affecting any human account. Short-lived installation tokens are generated per-workflow run — no long-lived credential is ever present in the runner environment.
+
+**`stage-*` branches protected.** Because the GitHub App is the promotion actor, `stage-*` branches can be protected with a push restriction allowing only the App. This closes the path where any actor with `contents: write` access could push directly to staging. The protection on `stage-*` and the Ruleset on `main` together form two independent enforcement layers.
 
 **No promote-to-main job.** The pipeline does not contain a job that pushes to `main`. Keeping `main` promotion as a manual human action preserves a deliberate review point regardless of pipeline automation. This boundary is enforced structurally, not by convention.
-
-**Stage lanes unprotected by design.** Protecting `stage-*` would require either a PAT or a GitHub App to push through branch protection. Leaving them unprotected simplifies the runner credential model. The only branch requiring protection is `main`.
 
 **Status checks as the enforcement primitive.** Requiring named status checks rather than requiring a specific source branch makes the enforcement model composable. If a platform is added in the future, adding its stage status check to the required list is the only configuration change needed — no Ruleset modifications, no YAML restructuring.
