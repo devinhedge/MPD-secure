@@ -21,20 +21,21 @@ no commit can reach `main` without passing through the full pipeline.
 - Branches created: `dev`, `int`, `test-ubuntu-debian`, `test-fedora-rhel`,
   `test-arch`, `test-macos`, `test-windows`, `stage-ubuntu-debian`,
   `stage-fedora-rhel`, `stage-arch`, `stage-macos`, `stage-windows`
-- `dev` protected with classic branch protection — PR required:
+- `dev` protected with GitHub Ruleset — PR required:
   - Direct push to `dev` is prohibited
   - Three required status checks on `dev` PRs: SAST, CVE scan, secret
     detection — a PR cannot be merged until all three pass
-- `int` protected with classic branch protection — push restricted to the
-  GitHub App only; no human or `GITHUB_TOKEN` can push directly
+- `int` protected with GitHub Ruleset — push restricted; GitHub App is the
+  only bypass actor; no human or `GITHUB_TOKEN` can push directly
 - `test-ubuntu-debian`, `test-fedora-rhel`, `test-arch`, `test-macos`,
-  `test-windows` each protected with classic branch protection — push
-  restricted to the GitHub App only
+  `test-windows` each protected with GitHub Ruleset — push restricted;
+  GitHub App is the only bypass actor
 - `stage-ubuntu-debian`, `stage-fedora-rhel`, `stage-arch`, `stage-macos`,
-  `stage-windows` each protected with classic branch protection — push
-  restricted to the GitHub App only
+  `stage-windows` each protected with GitHub Ruleset — push restricted;
+  GitHub App is the only bypass actor
 - GitHub Ruleset applied to `main`:
-  - Direct push prohibited for all actors including administrators
+  - Direct push prohibited for all actors including administrators; no bypass
+    actors configured
   - Five required status checks: `pipeline/stage-ubuntu-debian`,
     `pipeline/stage-fedora-rhel`, `pipeline/stage-arch`,
     `pipeline/stage-macos`, `pipeline/stage-windows`
@@ -57,12 +58,14 @@ no commit can reach `main` without passing through the full pipeline.
   int→test-*, test-*→stage-*, and stage-* status checks); its credentials
   are independently rotatable; it appears in the audit log; short-lived
   installation tokens are generated per workflow run
-- **Classic branch protection with App allowlist for `int`, `test-*`, and
-  `stage-*`** — Rulesets cannot restrict pushes to a specific GitHub App
-  identity (only to users or teams); classic branch protection supports the
-  push restriction allowlist required to scope access to the App
-- **GitHub Ruleset for `main`** — Rulesets block admin bypass; classic branch
-  protection does not; `main` requires this stronger enforcement primitive
+- **GitHub Rulesets exclusively for all branches** — Rulesets support GitHub
+  Apps as named bypass actors; a Ruleset that restricts all pushes with only
+  the pipeline App as bypass actor is the correct mechanism for App-only
+  branch promotion; using Rulesets everywhere blocks admin bypass on every
+  branch in the pipeline, not just `main`
+- **`main` Ruleset has no bypass actors** — direct push is prohibited for all
+  actors including administrators; promotion to `main` is exclusively via PR
+  merge after all five required status checks are satisfied
 - **Required status checks as the enforcement primitive** — adding a platform
   in the future requires only adding its stage check to the required list
 - **No automated promotion to `main`** — the pipeline never pushes to `main`;
@@ -76,11 +79,14 @@ _Task files live in `docs/09-tasks/`. Create one task file per discrete
 implementation step following the TASK_STANDARD._
 
 - [ ] Create all pipeline branches in the repository
-- [ ] Configure `dev` classic branch protection (PR required; SAST/CVE/secrets
-      as required status checks)
-- [ ] Configure `int` classic branch protection (push restricted to GitHub App)
-- [ ] Configure `test-*` classic branch protection (push restricted to GitHub App)
-- [ ] Configure `stage-*` classic branch protection (push restricted to GitHub App)
+- [ ] Configure `dev` GitHub Ruleset (PR required; SAST/CVE/secrets as
+      required status checks)
+- [ ] Configure `int` GitHub Ruleset (push restricted; GitHub App as sole
+      bypass actor)
+- [ ] Configure `test-*` GitHub Rulesets (push restricted; GitHub App as sole
+      bypass actor)
+- [ ] Configure `stage-*` GitHub Rulesets (push restricted; GitHub App as
+      sole bypass actor)
 - [ ] Create GitHub App and install on repository; store `PIPELINE_APP_ID` and
       `PIPELINE_APP_PRIVATE_KEY` as repository secrets
 - [ ] Configure GitHub Ruleset on `main` (no direct push; five required status
