@@ -94,8 +94,13 @@ in step 3.
 
 ### 2d. Retrieve the installation ID
 
-```bash
-gh api /repos/devinhedge/MPD-secure/installation --jq '.id'
+Go to: https://github.com/settings/apps/mpd-secure-pipeline/installations
+
+Next to `devinhedge`, click the gear icon ("Installation settings"). The installation ID
+is the number at the end of the URL:
+
+```
+https://github.com/apps/mpd-secure-pipeline/installations/<INSTALLATION_ID>
 ```
 
 Record this number. You will pass it to steps 3 and 4.
