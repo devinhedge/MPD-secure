@@ -67,6 +67,13 @@ if [ -n "$DEV_RULESET_ID" ]; then
       fail "dev Ruleset missing check: ${check}"
     fi
   done
+  dev_check_count=$(gh api "repos/${REPO}/rulesets/${DEV_RULESET_ID}" \
+    --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks | length' 2>/dev/null || echo "0")
+  if [ "$dev_check_count" -eq 3 ]; then
+    pass "dev Ruleset requires exactly 3 status checks"
+  else
+    fail "dev Ruleset requires ${dev_check_count} status check(s), expected 3"
+  fi
 else
   fail "Cannot inspect dev Ruleset — not found"
 fi
