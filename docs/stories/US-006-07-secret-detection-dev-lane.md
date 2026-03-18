@@ -1,7 +1,7 @@
 # US-006-07: Embed Secret Detection in the `dev` Lane
 
 **Feature:** [FEATURE-006](../features/FEATURE-006-cicd-pipeline.md) — Add CI/CD Pipeline with Security Gates
-**GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/6
+**GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/18
 **Status:** Planned
 **Blocked By:** US-006-01 (`dev` branch and protection must exist first)
 

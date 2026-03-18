@@ -1,7 +1,7 @@
 # US-006-04: Implement Platform Stage Lanes
 
 **Feature:** [FEATURE-006](../features/FEATURE-006-cicd-pipeline.md) — Add CI/CD Pipeline with Security Gates
-**GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/6
+**GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/15
 **Status:** Planned
 **Blocked By:** US-006-01 (branches and protection must exist first),
                US-006-03 (stage workflows trigger on push to `stage-*` branches

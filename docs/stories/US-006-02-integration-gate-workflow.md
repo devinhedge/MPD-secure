@@ -1,7 +1,7 @@
 # US-006-02: Implement Integration Gate (`int` workflow)
 
 **Feature:** [FEATURE-006](../features/FEATURE-006-cicd-pipeline.md) — Add CI/CD Pipeline with Security Gates
-**GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/6
+**GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/13
 **Status:** Planned
 **Blocked By:** US-006-01 (branches and protection must exist first)
 

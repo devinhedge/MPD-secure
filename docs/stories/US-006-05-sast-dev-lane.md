@@ -1,7 +1,7 @@
 # US-006-05: Embed SAST in the `dev` Lane
 
 **Feature:** [FEATURE-006](../features/FEATURE-006-cicd-pipeline.md) — Add CI/CD Pipeline with Security Gates
-**GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/6
+**GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/16
 **Status:** Planned
 **Blocked By:** FEATURE-007 (STRIDE threat model provides the vulnerability
                catalog that informs SAST baseline and rule scope),

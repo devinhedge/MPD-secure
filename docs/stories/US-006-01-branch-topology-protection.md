@@ -1,7 +1,7 @@
 # US-006-01: Establish Branch Topology and Protection
 
 **Feature:** [FEATURE-006](../features/FEATURE-006-cicd-pipeline.md) — Add CI/CD Pipeline with Security Gates
-**GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/6
+**GitHub Issue:** https://github.com/devinhedge/MPD-secure/issues/12
 **Status:** Planned
 **Blocked By:** FEATURE-007 (STRIDE threat model)
 
