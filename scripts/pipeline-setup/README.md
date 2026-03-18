@@ -36,16 +36,43 @@ This step cannot be scripted. You must complete it before running steps 3 and 4.
 ### 2a. Create the App
 
 1. Go to: https://github.com/settings/apps/new
-2. Fill in the fields:
-   - **GitHub App name:** `mpd-secure-pipeline`
-   - **Homepage URL:** `https://github.com/devinhedge/MPD-secure`
-   - **Webhook:** uncheck "Active" (no webhook needed)
-3. Set **Repository permissions:**
-   - **Contents:** Read and write
+
+2. **GitHub App name:** `mpd-secure-pipeline`
+
+3. **Description:** leave blank
+
+4. **Homepage URL:** `https://github.com/devinhedge/MPD-secure`
+
+5. **Identifying and authorizing users** section — leave all fields at their defaults:
+   - Callback URL: leave blank
+   - Expire user authorization tokens: leave checked (default)
+   - Request user authorization (OAuth) during installation: leave unchecked (default)
+   - Enable Device Flow: leave unchecked (default)
+
+6. **Post installation** section — leave all fields at their defaults:
+   - Setup URL: leave blank
+   - Redirect on update: leave unchecked (default)
+
+7. **Webhook** section:
+   - **Uncheck "Active"** — this App does not use webhooks
+   - Webhook URL and Secret fields will disappear once Active is unchecked
+
+8. **Repository permissions** — expand and set:
    - **Commit statuses:** Read and write
-4. Under **Where can this GitHub App be installed?**, select **Only on this account**
-5. Click **Create GitHub App**
-6. Record the **App ID** shown at the top of the App settings page
+   - **Contents:** Read and write
+   - All other repository permissions: leave at No access (default)
+
+9. **Organization permissions** — leave all at No access (default)
+
+10. **Account permissions** — leave all at None (default)
+
+11. **Subscribe to events** — leave all unchecked (default)
+
+12. **Where can this GitHub App be installed?** — select **Only on this account** (default)
+
+13. Click **Create GitHub App**
+
+14. Record the **App ID** shown at the top of the App settings page
 
 ### 2b. Generate a private key
 
