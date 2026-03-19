@@ -1,0 +1,94 @@
+---
+name: Integration Gate
+
+on:
+  push:
+    branches:
+      - int
+
+permissions:
+  contents: read
+
+jobs:
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        # No ref override needed: for a push trigger, actions/checkout defaults
+        # to github.sha (the commit that triggered the workflow).
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            meson \
+            ninja-build \
+            g++ \
+            nlohmann-json3-dev \
+            libfmt-dev \
+            libgtest-dev \
+            libpcre2-dev \
+            libsystemd-dev \
+            libdbus-1-dev \
+            libicu-dev \
+            libcurl4-gnutls-dev \
+            libavahi-client-dev \
+            libmad0-dev \
+            libmpg123-dev \
+            libid3tag0-dev \
+            libflac-dev \
+            libvorbis-dev \
+            libopus-dev \
+            libogg-dev \
+            libadplug-dev \
+            libaudiofile-dev \
+            libsndfile1-dev \
+            libfaad-dev \
+            libfluidsynth-dev \
+            libgme-dev \
+            libmikmod-dev \
+            libmodplug-dev \
+            libmpcdec-dev \
+            libwavpack-dev \
+            libwildmidi-dev \
+            libsidplay2-dev \
+            libsidutils-dev \
+            libresid-builder-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libmp3lame-dev \
+            libtwolame-dev \
+            libshine-dev \
+            libsamplerate0-dev \
+            libsoxr-dev \
+            libbz2-dev \
+            libcdio-paranoia-dev \
+            libiso9660-dev \
+            libmms-dev \
+            libzzip-dev \
+            libexpat-dev \
+            libasound2-dev \
+            libao-dev \
+            libjack-jackd2-dev \
+            libopenal-dev \
+            libpulse-dev \
+            libshout3-dev \
+            libsndio-dev \
+            libmpdclient-dev \
+            libnfs-dev \
+            libupnp-dev \
+            libsqlite3-dev \
+            libchromaprint-dev \
+            libgcrypt20-dev
+
+      - name: Configure (full feature build)
+        run: meson setup builddir
+        # Do NOT add -Dauto_features=disabled -- this must be a full feature build.
+
+      - name: Build
+        run: ninja -C builddir
+
+      - name: Unit tests
+        run: meson test -C builddir --no-rebuild
