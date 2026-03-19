@@ -81,8 +81,10 @@ exist for this branch.
 Name:    pipeline-dev-protection
 Target:  branch name = "dev"
 Rules:
-  - require_pull_request (required_approving_review_count: 0)
+  - require_pull_request (required_approving_review_count: 1)
   - required_status_checks:
+      - context: "compile"
+      - context: "unit-tests"
       - context: "sast"
       - context: "cve-scan"
       - context: "secret-detection"
@@ -90,11 +92,12 @@ Rules:
 Bypass actors: none
 ```
 
-Note: the status check context strings (`sast`, `cve-scan`, `secret-detection`)
-must match the job names used in the workflow files defined in US-006-05,
-US-006-06, and US-006-07. These names are treated as placeholders until those
-stories are implemented. `03-configure-rulesets.sh` accepts them as arguments
-so the Ruleset can be updated without editing the script. See Constraints.
+Note: the status check context strings (`compile`, `unit-tests`, `sast`,
+`cve-scan`, `secret-detection`) must match the job names used in the workflow
+files defined in US-006-02, US-006-05, US-006-06, and US-006-07. These names
+are treated as placeholders until those stories are implemented.
+`03-configure-rulesets.sh` accepts them as arguments so the Ruleset can be
+updated without editing the script. See Constraints.
 
 ### Pattern 2 — `int`, `test-*`, `stage-*` (one Ruleset per branch)
 

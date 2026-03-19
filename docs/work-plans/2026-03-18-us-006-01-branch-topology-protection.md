@@ -210,9 +210,11 @@ Create `scripts/pipeline-setup/03-configure-rulesets.sh` with this exact content
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <INSTALLATION_ID> [SAST_CHECK] [CVE_CHECK] [SECRETS_CHECK]"
+  echo "Usage: $0 <INSTALLATION_ID> [COMPILE_CHECK] [UT_CHECK] [SAST_CHECK] [CVE_CHECK] [SECRETS_CHECK]"
   echo ""
   echo "  INSTALLATION_ID  — GitHub App installation ID"
+  echo "  COMPILE_CHECK    — status check context for compile (default: compile)"
+  echo "  UT_CHECK         — status check context for unit tests (default: unit-tests)"
   echo "  SAST_CHECK       — status check context for SAST (default: sast)"
   echo "  CVE_CHECK        — status check context for CVE scan (default: cve-scan)"
   echo "  SECRETS_CHECK    — status check context for secret detection (default: secret-detection)"
@@ -224,9 +226,11 @@ if [ "$#" -lt 1 ]; then
 fi
 
 INSTALLATION_ID="$1"
-SAST_CHECK="${2:-sast}"
-CVE_CHECK="${3:-cve-scan}"
-SECRETS_CHECK="${4:-secret-detection}"
+COMPILE_CHECK="${2:-compile}"
+UT_CHECK="${3:-unit-tests}"
+SAST_CHECK="${4:-sast}"
+CVE_CHECK="${5:-cve-scan}"
+SECRETS_CHECK="${6:-secret-detection}"
 
 REPO="devinhedge/MPD-secure"
 OWNER="devinhedge"
@@ -270,7 +274,7 @@ create_ruleset "pipeline-dev-protection" "$(cat <<JSON
     {
       "type": "pull_request",
       "parameters": {
-        "required_approving_review_count": 0,
+        "required_approving_review_count": 1,
         "dismiss_stale_reviews_on_push": false,
         "require_code_owner_review": false,
         "require_last_push_approval": false,
@@ -282,6 +286,8 @@ create_ruleset "pipeline-dev-protection" "$(cat <<JSON
       "parameters": {
         "strict_required_status_checks_policy": false,
         "required_status_checks": [
+          {"context": "${COMPILE_CHECK}"},
+          {"context": "${UT_CHECK}"},
           {"context": "${SAST_CHECK}"},
           {"context": "${CVE_CHECK}"},
           {"context": "${SECRETS_CHECK}"}

@@ -26,8 +26,10 @@ no commit can reach `main` without passing through the full pipeline.
   `stage-fedora-rhel`, `stage-arch`, `stage-macos`, `stage-windows`
 - `dev` protected with GitHub Ruleset — PR required:
   - Direct push to `dev` is prohibited
-  - Three required status checks on `dev` PRs: SAST, CVE scan, secret
-    detection — a PR cannot be merged until all three pass
+  - At least one approving review required before merge
+  - Six required status checks on `dev` PRs: constrained compile, full unit
+    test suite, SAST, CVE scan, secret detection — a PR cannot be merged
+    until all six pass
 - `int` protected with GitHub Ruleset — push restricted; GitHub App is the
   only bypass actor; no human or `GITHUB_TOKEN` can push directly
 - `test-ubuntu-debian`, `test-fedora-rhel`, `test-arch`, `test-macos`,
