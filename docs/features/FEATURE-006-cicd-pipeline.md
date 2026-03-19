@@ -97,9 +97,9 @@ no commit can reach `main` without passing through the full pipeline.
 - `dev` protected with GitHub Ruleset — PR required:
   - Direct push to `dev` is prohibited
   - At least one approving review required before merge
-  - Six required status checks on `dev` PRs: constrained compile, full unit
+  - Five required status checks on `dev` PRs: constrained compile, full unit
     test suite, SAST, CVE scan, secret detection — a PR cannot be merged
-    until all six pass
+    until all five pass
 - `int` protected with GitHub Ruleset — push restricted; GitHub App is the
   only bypass actor; no human or `GITHUB_TOKEN` can push directly
 - `test-ubuntu-debian`, `test-fedora-rhel`, `test-arch`, `test-macos`,
@@ -149,26 +149,34 @@ no commit can reach `main` without passing through the full pipeline.
 ### US-006-02: Implement Integration Gate (`int` workflow)
 
 **As a** contributor to MPD-secure,
-**I want** an `int` workflow that runs on push to `dev` and fans out to all
+**I want** the `dev.yml` workflow to promote passing commits to `int`, and
+`int.yml` to run a full build and regression suite before fanning out to all
 five platform test lanes,
 **so that** integration failures are caught before any platform-specific work
 begins.
 
 **Acceptance Criteria:**
 
-- Workflow triggers on push to `dev`
-- Builds MPD-secure using Meson on a generic runner (validates build system
-  correctness independent of platform packaging)
-- On success, the GitHub App pushes the commit to the `int` branch using a
+- `dev.yml` includes a final promotion job that runs only when all five
+  security gate jobs pass (`compile`, `unit-tests`, `sast`, `cve-scan`,
+  `secret-detection`); the GitHub App pushes the commit to `int` using a
   short-lived installation token generated via `actions/create-github-app-token`:
   ```
   git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
-    HEAD:refs/heads/int
+    ${{ github.sha }}:refs/heads/int
   ```
-- On success, dispatches all five platform test workflows in parallel using
-  `workflow_call` or `repository_dispatch`
-- All five fan-out dispatches use the same commit SHA that passed the
-  integration build
+- `int.yml` triggers on push to the `int` branch
+- `int.yml` builds MPD-secure using Meson with all features enabled
+  (full feature build — no `auto_features=disabled`)
+- `int.yml` runs the full unit test regression suite
+- On all `int.yml` jobs passing, a promotion job uses the GitHub App to push
+  the same commit SHA to all five `test-*` branches: `test-ubuntu-debian`,
+  `test-fedora-rhel`, `test-arch`, `test-macos`, `test-windows`
+- All five `test-*` branch pushes use the identical commit SHA that passed
+  the integration build and regression suite
+- A failed `dev.yml` security gate job prevents promotion to `int`
+- A failed `int.yml` build or regression job prevents fan-out to any
+  `test-*` branch
 
 ---
 
