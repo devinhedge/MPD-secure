@@ -22,18 +22,16 @@ platform-native package,
 - Five test workflows: `test-ubuntu-debian`, `test-fedora-rhel`, `test-arch`,
   `test-macos`, `test-windows`
 - Each workflow:
+  - Triggers on push to its corresponding `test-*` branch (push performed by
+    `int-to-fanout.yml` via GitHub App)
   - Runs on the correct runner (see platform table below)
   - Builds MPD-secure with Meson for the target platform
   - Produces the platform-native package artifact (`.deb`, `.rpm`,
     `.pkg.tar.zst`, Homebrew formula, WiX installer)
   - Runs the platform's package validation tooling (e.g., `lintian` for
     `.deb`, `rpmlint` for `.rpm`)
-  - On all jobs passing, promotes the commit to the corresponding `test-*`
-    branch via a GitHub App installation token:
-    ```
-    git push https://x-access-token:${APP_TOKEN}@github.com/<owner>/<repo>.git \
-      <SHA>:refs/heads/test-<platform>
-    ```
+  - Installs the platform-native package from the built artifact
+  - Runs automated functional tests against the installed binary
   - On all jobs passing, promotes the commit to the corresponding `stage-*`
     branch via a GitHub App installation token:
     ```
@@ -63,17 +61,20 @@ _Task files live in `docs/09-tasks/`. Create one task file per discrete
 implementation step following the TASK_STANDARD._
 
 - [ ] Write `test-ubuntu-debian` workflow YAML (`.deb` build, `lintian`,
-      App push to `test-ubuntu-debian` and `stage-ubuntu-debian`)
+      package install, functional tests, App push to `stage-ubuntu-debian`)
 - [ ] Write `test-fedora-rhel` workflow YAML (`.rpm` build in `fedora` container,
-      `rpmlint`, App push to `test-fedora-rhel` and `stage-fedora-rhel`)
+      `rpmlint`, package install, functional tests, App push to `stage-fedora-rhel`)
 - [ ] Write `test-arch` workflow YAML (`PKGBUILD`/`.pkg.tar.zst` in `archlinux`
-      container, `namcap`, App push to `test-arch` and `stage-arch`)
-- [ ] Write `test-macos` workflow YAML (Homebrew formula build,
-      App push to `test-macos` and `stage-macos`)
-- [ ] Write `test-windows` workflow YAML (WiX v4 installer build,
-      App push to `test-windows` and `stage-windows`)
+      container, `namcap`, package install, functional tests, App push to `stage-arch`)
+- [ ] Write `test-macos` workflow YAML (Homebrew formula build, package install,
+      functional tests, App push to `stage-macos`)
+- [ ] Write `test-windows` workflow YAML (WiX v4 installer build, package install,
+      functional tests, App push to `stage-windows`)
+- [ ] Write automated functional test suite invoked by all platform workflows
+- [ ] Verify: each workflow triggers on push to its `test-*` branch
 - [ ] Verify: each workflow produces the correct native artifact
 - [ ] Verify: package validation tooling runs and blocks on failure
-- [ ] Verify: failed packaging job prevents promotion to `test-*` and `stage-*`
-- [ ] Verify: `test-*` branch receives the commit after test jobs pass
-- [ ] Verify: `stage-*` branch receives the commit after test jobs pass
+- [ ] Verify: package installs successfully from the built artifact
+- [ ] Verify: functional tests run against the installed binary and block on failure
+- [ ] Verify: failed job prevents promotion to `stage-*`
+- [ ] Verify: `stage-*` branch receives the commit after all jobs pass
