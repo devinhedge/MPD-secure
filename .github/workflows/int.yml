@@ -92,3 +92,48 @@ jobs:
 
       - name: Unit tests
         run: meson test -C builddir --no-rebuild
+
+  promote-to-test-lanes:
+    needs: [build-and-test]
+    if: success()
+    # success() is scoped to needs: [build-and-test] only.
+    # Any future job added to int.yml must also be added to this needs list
+    # or promotion will proceed silently on partial failure.
+    # IMPORTANT: This guard is sufficient only while push is the sole trigger.
+    # If workflow_dispatch is ever added to int.yml, an additional
+    # if: github.ref == 'refs/heads/int' guard MUST be added here before
+    # enabling that trigger.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.sha }}
+        # Required: git push <url> <sha>:<ref> resolves the SHA from the
+        # local git object store. Without checkout, git cannot resolve
+        # github.sha and the push fails with "unknown revision."
+
+      - name: Generate App token
+        id: token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547
+        with:
+          app-id: ${{ secrets.PIPELINE_APP_ID }}
+          private-key: ${{ secrets.PIPELINE_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+        # SHA-pinned (not @v1). Token scoped to this repository only.
+
+      - name: Push SHA to all test-* branches
+        env:
+          TOKEN: ${{ steps.token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          git push "https://x-access-token:${TOKEN}@github.com/${REPO}.git" \
+            ${{ github.sha }}:refs/heads/test-ubuntu-debian
+          git push "https://x-access-token:${TOKEN}@github.com/${REPO}.git" \
+            ${{ github.sha }}:refs/heads/test-fedora-rhel
+          git push "https://x-access-token:${TOKEN}@github.com/${REPO}.git" \
+            ${{ github.sha }}:refs/heads/test-arch
+          git push "https://x-access-token:${TOKEN}@github.com/${REPO}.git" \
+            ${{ github.sha }}:refs/heads/test-macos
+          git push "https://x-access-token:${TOKEN}@github.com/${REPO}.git" \
+            ${{ github.sha }}:refs/heads/test-windows
